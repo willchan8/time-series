@@ -1,66 +1,65 @@
 import { create } from 'zustand';
 
-// interface TimeSeriesData {
-//   times: string[];
-//   values: number[];
-// }
-
-interface TimeSeriesData {
+interface DataPoint {
   time: string;
   value: number;
 }
 
 interface State {
   beginDate: string;
-  data: TimeSeriesData[];
-  // data: TimeSeriesData;
+  data: DataPoint[];
+  isLoading: boolean;
+  isError: boolean;
 }
 
 interface Actions {
   setBeginDate: (date: string) => void;
-  fetchData: (beginDate: string, end: string) => Promise<void>;
+  fetchData: (date: string) => Promise<void>;
 }
 
 const useStore = create<State & Actions>((set) => ({
+  // Set default date as today
   beginDate: new Date(Date.now()).toLocaleDateString(),
-  // data: { times: [], values: [] },
   data: [],
+  isLoading: false,
+  isError: false,
   setBeginDate: (date) => {
     set(() => ({ beginDate: date }));
   },
-  fetchData: async (begin, end) => {
+  fetchData: async (date) => {
     try {
+      set({ isLoading: true, isError: false });
+
+      const beginDateObj = new Date(date);
+
+      const beginUTC = beginDateObj.setUTCHours(0, 0, 0);
+      const begin = new Date(beginUTC).toISOString();
+
+      const endUTC = beginDateObj.setUTCHours(23, 59, 59);
+      const end = new Date(endUTC).toISOString();
+
       const response = await fetch(`https://tsserv.tinkermode.dev/data?begin=${begin}&end=${end}`);
       const text = await response.text();
       if (!response.ok) {
         throw new Error(text);
       }
-      // const structuredData = text.split('\n').reduce(
-      //   (prev, curr) => {
-      //     if (curr) {
-      //       // Split the line into time and value. Regex [/\s+/] indicates whitespace of all lengths.
-      //       const [time, value] = curr.split(/\s+/);
-      //       if (!time || isNaN(parseFloat(value))) {
-      //         return prev;
-      //       }
-      //       return { times: [...prev.times, time], values: [...prev.values, parseFloat(value)] };
-      //     } else {
-      //       return prev;
-      //     }
-      //   },
-      //   { times: [], values: [] } as TimeSeriesData
-      // );
       const structuredData = text.split('\n').reduce((prev, curr) => {
-        // Split the line into time and value. Regex [/\s+/] indicates whitespace of all lengths.
+        // Split each line into [time, value]. Regex [/\s+/] indicates any continuous whitespace.
         const [time, value] = curr.split(/\s+/);
-        if (!time || isNaN(parseFloat(value))) {
+
+        const floatValue = parseFloat(value);
+
+        if (!time || isNaN(floatValue)) {
           return prev;
         }
-        return [...prev, { time, value: parseFloat(value) }];
-      }, [] as TimeSeriesData[]);
+        return [...prev, { time, value: floatValue }];
+      }, [] as DataPoint[]);
       set({ data: structuredData });
     } catch (error) {
+      set({ isError: true });
       console.error(error);
+    } finally {
+      set({ isLoading: false });
     }
   },
 }));
