@@ -4,8 +4,6 @@
 
 This application fetches arbitrary time series data from an API server and renders them on a time graph and paginated data table.
 
-![Time Series Data Application Screenshot](https://github.com/willchan8/time-series/assets/23622174/df8cbb50-a796-45e4-8f2d-f462bbe6788b)
-
 ## Table of Contents
 
 - [Requirements](#requirements)
